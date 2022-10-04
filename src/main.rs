@@ -8,6 +8,7 @@ const DEFAULT_SIZE: usize = 10;
 struct History {
     id: usize,
     command: String,
+    time: String,
     path: String,
 }
 
@@ -16,6 +17,7 @@ impl History {
         History {
             id: 0,
             command: "".to_string(),
+            time: "".to_string(),
             path: "".to_string(),
         }
     }
@@ -38,8 +40,8 @@ fn main() -> Result<(), std::io::Error> {
             "
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY,
-            time DATETIME NOT NULL,
             command TEXT NOT NULL,
+            time DATETIME NOT NULL,
             path TEXT NOT NULL
         );
         ",
@@ -66,10 +68,13 @@ fn main() -> Result<(), std::io::Error> {
                                 history.id = value.map(|x| x.parse().unwrap()).unwrap();
                             }
                             "command" => {
-                                history.command = value.unwrap().to_string();
+                                history.command = value.unwrap().to_owned();
+                            }
+                            "time" => {
+                                history.time = value.unwrap().to_owned();
                             }
                             "path" => {
-                                history.path = value.unwrap().to_string();
+                                history.path = value.unwrap().to_owned();
                             }
                             _ => {}
                         }
