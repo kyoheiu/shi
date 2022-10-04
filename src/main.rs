@@ -1,16 +1,46 @@
-use std::fmt::Write as _;
+use std::path::PathBuf;
 
-const DEFAULT_SIZE: usize = 50;
+use tabled::{Table, Tabled};
 
-fn main() {
-    let connection = sqlite::open("test").unwrap();
+const DEFAULT_SIZE: usize = 10;
+
+#[derive(Tabled)]
+struct History {
+    id: usize,
+    command: String,
+    path: String,
+}
+
+impl History {
+    fn new() -> History {
+        History {
+            id: 0,
+            command: "".to_string(),
+            path: "".to_string(),
+        }
+    }
+}
+
+fn main() -> Result<(), std::io::Error> {
+    let db_path = {
+        let mut path = dirs::home_dir().unwrap();
+        path = path.join(".shi");
+        if !path.exists() {
+            std::fs::create_dir(&path)?;
+        }
+        path = path.join("history");
+        path
+    };
+
+    let connection = sqlite::open(db_path).unwrap();
     connection
         .execute(
             "
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY,
             time DATETIME NOT NULL,
-            command TEXT NOT NULL
+            command TEXT NOT NULL,
+            path TEXT NOT NULL
         );
         ",
         )
@@ -18,35 +48,66 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
+        let mut histories = vec![];
         connection
-            .iterate("SELECT * FROM history", |pairs| {
-                let mut count: usize = 0;
-                let mut result = String::new();
-                for &(column, value) in pairs.iter() {
-                    if column == "id" {
-                        result.push_str(value.unwrap());
-                    } else {
-                        let _ = write!(result, " {}", value.unwrap());
+            .iterate(
+                &format!(
+                    "SELECT *
+                    FROM history
+                    ORDER BY id DESC
+                    LIMIT {}",
+                    DEFAULT_SIZE
+                ),
+                |pairs| {
+                    let mut history = History::new();
+                    for &(column, value) in pairs.iter() {
+                        match column {
+                            "id" => {
+                                history.id = value.map(|x| x.parse().unwrap()).unwrap();
+                            }
+                            "command" => {
+                                history.command = value.unwrap().to_string();
+                            }
+                            "path" => {
+                                history.path = value.unwrap().to_string();
+                            }
+                            _ => {}
+                        }
                     }
-                    count += 1;
-                }
-                println!("{}", result);
-                count != DEFAULT_SIZE
-            })
+                    histories.push(history);
+                    true
+                },
+            )
             .unwrap();
+        histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+        let mut table = Table::new(histories);
+        table.with(tabled::Style::psql());
+        println!("{}", table);
+        Ok(())
     } else if args[1] == "insert" && args.len() > 2 {
-        if args[2].starts_with(' ') {
-            return;
+        if args[2].starts_with(' ') || (args[2] == "shi" && args.len() == 3) {
+            Ok(())
         } else {
             let command = args[2..args.len()].join(" ");
+            let path = match std::env::current_dir() {
+                Ok(path) => path,
+                Err(_) => PathBuf::from("UNKNOWN"),
+            };
             connection
                 .execute(format!(
                     "
-                    INSERT INTO history (time, command) VALUES (datetime('now', 'localtime'), '{}');
+                    INSERT INTO history (time, command, path)
+                    VALUES (
+                        datetime('now', 'localtime'), 
+                        '{}',
+                        '{}'
+                    );
                     ",
-                    command
+                    command,
+                    path.display()
                 ))
                 .unwrap();
+            Ok(())
         }
     } else if args[1] == "rm" {
         connection
@@ -56,5 +117,10 @@ fn main() {
         ",
             )
             .unwrap();
+        println!("Dropped history.");
+        Ok(())
+    } else {
+        println!("No args.");
+        Ok(())
     }
 }
