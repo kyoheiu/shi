@@ -47,7 +47,7 @@ fn main() -> Result<(), std::io::Error> {
     connection
         .execute(
             "
-        CREATE TABLE IF NOT EXISTS history (
+            CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY,
             command TEXT NOT NULL,
             time DATETIME NOT NULL,
@@ -94,7 +94,7 @@ fn main() -> Result<(), std::io::Error> {
         Ok(())
     } else if args.len() >= 2 {
         match args[1].as_str() {
-            "all" => {
+            "-a" | "--all" => {
                 let mut histories = vec![];
                 connection
                     .iterate(
@@ -129,7 +129,7 @@ fn main() -> Result<(), std::io::Error> {
                 print_histories(histories, Print::PrintPath);
                 Ok(())
             }
-            "insert" => {
+            "-i" | "--insert" => {
                 if args.len() == 2
                     || args[2].starts_with(' ')
                     || (args[2] == "shi" && args.len() == 3)
@@ -158,7 +158,7 @@ fn main() -> Result<(), std::io::Error> {
                     Ok(())
                 }
             }
-            "drop" => {
+            "-d" | "--drop" => {
                 connection
                     .execute(
                         "
@@ -169,7 +169,7 @@ fn main() -> Result<(), std::io::Error> {
                 println!("Dropped history.");
                 Ok(())
             }
-            "dir" => {
+            "-p" | "--path" => {
                 println!("Printing commands executed in directories that match the query...\n");
                 let mut histories = vec![];
                 connection
@@ -209,7 +209,7 @@ fn main() -> Result<(), std::io::Error> {
                 print_histories(histories, Print::PrintPath);
                 Ok(())
             }
-            "command" => {
+            "-c" | "--command" => {
                 println!("Printing commands that match the query...\n");
                 let mut histories = vec![];
                 connection
@@ -249,7 +249,7 @@ fn main() -> Result<(), std::io::Error> {
                 print_histories(histories, Print::PrintPath);
                 Ok(())
             }
-            "export" => {
+            "-o" | "--output" => {
                 let mut histories = vec![];
                 connection
                     .iterate(
