@@ -4,31 +4,33 @@ small history / 史
 
 An experimental alternative to bash history using sqlite.
 
-## Install
+## Installation
 
-`git clone` this repo, and paste the code below in `.bashrc`.
+```
+git clone https://github.com/kyoheiu/shi.git
+cd shi
+cargo install --path .
+```
+
+And add the following lines to the end of `.bashrc` file.
 
 _bash-preexec required. See [https://github.com/rcaloras/bash-preexec](https://github.com/rcaloras/bash-preexec)_
 
 ```bash
-shi_func() {
-    if [[ ! $1 =~ '^\s.*' ]]; then
-        shi insert "$@"
-    fi
-}
-
 source ~/.bash-preexec.sh
-preexec() { shi insert "$@"; }
+preexec() { shi --insert "$@"; }
 ```
 
 ## Usage
 
-| command                 | What is this                                                            |
-| ----------------------- | ----------------------------------------------------------------------- |
-| shi                     | Print the last 50 commands and time.                                    |
-| shi all                 | Print all the history with the directory where the command is executed. |
-| shi insert \<command\>  | Insert the command to the database.                                     |
-| shi command \<command\> | Search command history that matches the query.                          |
-| shi dir \<path\>        | Search directory history that matches the query.                        |
-| shi drop                | Drop the database table and delete history.                             |
-| shi export              | Export the history to json format.                                      |
+```
+shi [option]              Print the last 50 commands and time
+
+Options:
+  -a, --all               Print all the history with the directory path where the command was executed
+  -i, --insert <COMMAND>  Insert the command to the history
+  -d, --drop              Drop the database table, delete all history
+  -p, --path <PATH>       Show commands that were executed in directories that match the query
+  -c, --command <COMMAND> Show commands that match the query
+  -o, --output            Export all the history to `~/.shi/history.json`
+```
