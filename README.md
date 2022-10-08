@@ -29,7 +29,8 @@ shi [option]              Print the last 50 commands and time
 Options:
   -a, --all               Print all the history with the directory path where the command was executed
   -i, --insert <COMMAND>  Insert the command to the history
-  -d, --drop              Drop the database table, delete all history
+  -d, --delete <ID>       Delete the command that matches the id
+  -r, --remove            Drop the database table, delete all history
   -p, --path <PATH>       Show commands that were executed in directories that match the query
   -c, --command <COMMAND> Show commands that match the query
   -o, --output            Export all the history to `~/.shi/history.json`

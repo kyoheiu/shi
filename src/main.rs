@@ -158,7 +158,28 @@ fn main() -> Result<(), std::io::Error> {
                     Ok(())
                 }
             }
-            "-d" | "--drop" => {
+            "-d" | "--delete" => {
+                if args.len() == 2 {
+                    Ok(())
+                } else {
+                    let keys = &args[2..args.len()];
+                    for key in keys {
+                        let key: usize = key.parse().unwrap();
+                        connection
+                            .execute(format!(
+                                "
+                            DELETE FROM history
+                            WHERE id = {};
+                        ",
+                                key
+                            ))
+                            .unwrap();
+                        println!("Delete id {}.", key);
+                    }
+                    Ok(())
+                }
+            }
+            "-r" | "--remove" => {
                 connection
                     .execute(
                         "
