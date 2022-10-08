@@ -1,4 +1,4 @@
-use miniserde::{json, Serialize};
+use serde::Serialize;
 use std::{io::Write, path::PathBuf};
 use tabled::{locator::ByColumnName, Disable, Table, Tabled};
 const DEFAULT_SIZE: usize = 50;
@@ -30,7 +30,7 @@ enum Print {
 
 fn main() -> Result<(), std::io::Error> {
     let app_path = {
-        let mut path = dirs::home_dir().unwrap();
+        let mut path = dirs::home_dir().unwrap_or_else(|| panic!("Cannot detect home directory."));
         path = path.join(".shi");
         if !path.exists() {
             std::fs::create_dir(&path)?;
@@ -43,7 +43,8 @@ fn main() -> Result<(), std::io::Error> {
         path
     };
 
-    let connection = sqlite::open(db_path).unwrap();
+    let connection =
+        sqlite::open(db_path).unwrap_or_else(|_| panic!("Cannot create or open sqlite database."));
     connection
         .execute(
             "
@@ -60,74 +61,84 @@ fn main() -> Result<(), std::io::Error> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
         let mut histories = vec![];
-        connection
-            .iterate(
-                &format!(
-                    "SELECT *
+        match connection.iterate(
+            &format!(
+                "SELECT *
                     FROM history
                     ORDER BY id DESC
                     LIMIT {}",
-                    DEFAULT_SIZE
-                ),
-                |pairs| {
-                    let mut history = History::new();
-                    for &(column, value) in pairs.iter() {
-                        match column {
-                            "id" => {
-                                history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                            }
-                            "command" => {
-                                history.command = value.unwrap().to_owned();
-                            }
-                            "time" => {
-                                history.time = value.unwrap().to_owned();
-                            }
-                            _ => {}
+                DEFAULT_SIZE
+            ),
+            |pairs| {
+                let mut history = History::new();
+                for &(column, value) in pairs.iter() {
+                    match column {
+                        "id" => {
+                            history.id = value.map(|x| x.parse().unwrap()).unwrap();
                         }
+                        "command" => {
+                            history.command = value.unwrap().to_owned();
+                        }
+                        "time" => {
+                            history.time = value.unwrap().to_owned();
+                        }
+                        _ => {}
                     }
-                    histories.push(history);
-                    true
-                },
-            )
-            .unwrap();
-        print_histories(histories, Print::IgnorePath);
-        Ok(())
+                }
+                histories.push(history);
+                true
+            },
+        ) {
+            Ok(_) => {
+                print_histories(histories, Print::IgnorePath);
+                Ok(())
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                Ok(())
+            }
+        }
     } else if args.len() >= 2 {
         match args[1].as_str() {
             "-a" | "--all" => {
                 let mut histories = vec![];
-                connection
-                    .iterate(
-                        "SELECT *
+                match connection.iterate(
+                    "SELECT *
                             FROM history
                             ORDER BY id DESC
                             ",
-                        |pairs| {
-                            let mut history = History::new();
-                            for &(column, value) in pairs.iter() {
-                                match column {
-                                    "id" => {
-                                        history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                                    }
-                                    "command" => {
-                                        history.command = value.unwrap().to_owned();
-                                    }
-                                    "time" => {
-                                        history.time = value.unwrap().to_owned();
-                                    }
-                                    "path" => {
-                                        history.path = value.unwrap().to_owned();
-                                    }
-                                    _ => {}
+                    |pairs| {
+                        let mut history = History::new();
+                        for &(column, value) in pairs.iter() {
+                            match column {
+                                "id" => {
+                                    history.id = value.map(|x| x.parse().unwrap()).unwrap();
                                 }
+                                "command" => {
+                                    history.command = value.unwrap().to_owned();
+                                }
+                                "time" => {
+                                    history.time = value.unwrap().to_owned();
+                                }
+                                "path" => {
+                                    history.path = value.unwrap().to_owned();
+                                }
+                                _ => {}
                             }
-                            histories.push(history);
-                            true
-                        },
-                    )
-                    .unwrap();
-                print_histories(histories, Print::PrintPath);
-                Ok(())
+                        }
+                        histories.push(history);
+                        true
+                    },
+                ) {
+                    Ok(_) => {
+                        print_histories(histories, Print::PrintPath);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        Ok(())
+                    }
+                }
             }
             "-i" | "--insert" => {
                 if args.len() == 2
@@ -141,9 +152,8 @@ fn main() -> Result<(), std::io::Error> {
                         Ok(path) => path,
                         Err(_) => PathBuf::from("UNKNOWN"),
                     };
-                    connection
-                        .execute(format!(
-                            "
+                    match connection.execute(format!(
+                        "
                             INSERT INTO history (time, command, path)
                             VALUES (
                                 datetime('now', 'localtime'), 
@@ -151,11 +161,15 @@ fn main() -> Result<(), std::io::Error> {
                                 '{}'
                             );
                             ",
-                            command,
-                            path.display()
-                        ))
-                        .unwrap();
-                    Ok(())
+                        command,
+                        path.display()
+                    )) {
+                        Ok(_) => Ok(()),
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            Ok(())
+                        }
+                    }
                 }
             }
             "-d" | "--delete" => {
@@ -165,148 +179,193 @@ fn main() -> Result<(), std::io::Error> {
                     let keys = &args[2..args.len()];
                     for key in keys {
                         let key: usize = key.parse().unwrap();
-                        connection
-                            .execute(format!(
-                                "
+                        match connection.execute(format!(
+                            "
                             DELETE FROM history
                             WHERE id = {};
                         ",
-                                key
-                            ))
-                            .unwrap();
-                        println!("Delete id {}.", key);
+                            key
+                        )) {
+                            Ok(_) => {
+                                println!("Deleted id {}.", key);
+                            }
+                            Err(e) => {
+                                eprintln!("{}", e);
+                            }
+                        }
                     }
                     Ok(())
                 }
             }
             "-r" | "--remove" => {
-                connection
-                    .execute(
-                        "
+                println!("Are you sure to delete all history?");
+                let mut buffer = String::new();
+                std::io::stdin().read_line(&mut buffer).unwrap();
+                match buffer.as_str() {
+                    "y" => {
+                        match connection.execute(
+                            "
                         DROP TABLE IF EXISTS history;
                         ",
-                    )
-                    .unwrap();
-                println!("Dropped history.");
-                Ok(())
+                        ) {
+                            Ok(_) => {
+                                println!("Dropped history.");
+                                Ok(())
+                            }
+                            Err(e) => {
+                                eprintln!("{}", e);
+                                Ok(())
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("Canceled.");
+                        Ok(())
+                    }
+                }
             }
             "-p" | "--path" => {
                 println!("Printing commands executed in directories that match the query...\n");
                 let mut histories = vec![];
-                connection
-                    .iterate(
-                        &format!(
-                            "SELECT *
+                match connection.iterate(
+                    &format!(
+                        "SELECT *
                             FROM history
                             WHERE path LIKE '%{}%'
                             ORDER BY id DESC
                             LIMIT {}",
-                            args[2], DEFAULT_SIZE
-                        ),
-                        |pairs| {
-                            let mut history = History::new();
-                            for &(column, value) in pairs.iter() {
-                                match column {
-                                    "id" => {
-                                        history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                                    }
-                                    "command" => {
-                                        history.command = value.unwrap().to_owned();
-                                    }
-                                    "time" => {
-                                        history.time = value.unwrap().to_owned();
-                                    }
-                                    "path" => {
-                                        history.path = value.unwrap().to_owned();
-                                    }
-                                    _ => {}
+                        args[2], DEFAULT_SIZE
+                    ),
+                    |pairs| {
+                        let mut history = History::new();
+                        for &(column, value) in pairs.iter() {
+                            match column {
+                                "id" => {
+                                    history.id = value.map(|x| x.parse().unwrap()).unwrap();
                                 }
+                                "command" => {
+                                    history.command = value.unwrap().to_owned();
+                                }
+                                "time" => {
+                                    history.time = value.unwrap().to_owned();
+                                }
+                                "path" => {
+                                    history.path = value.unwrap().to_owned();
+                                }
+                                _ => {}
                             }
-                            histories.push(history);
-                            true
-                        },
-                    )
-                    .unwrap();
-                print_histories(histories, Print::PrintPath);
-                Ok(())
+                        }
+                        histories.push(history);
+                        true
+                    },
+                ) {
+                    Ok(_) => {
+                        print_histories(histories, Print::PrintPath);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        Ok(())
+                    }
+                }
             }
             "-c" | "--command" => {
                 println!("Printing commands that match the query...\n");
                 let mut histories = vec![];
-                connection
-                    .iterate(
-                        &format!(
-                            "SELECT *
+                match connection.iterate(
+                    &format!(
+                        "SELECT *
                             FROM history
                             WHERE command LIKE '%{}%'
                             ORDER BY id DESC
                             LIMIT {}",
-                            args[2], DEFAULT_SIZE
-                        ),
-                        |pairs| {
-                            let mut history = History::new();
-                            for &(column, value) in pairs.iter() {
-                                match column {
-                                    "id" => {
-                                        history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                                    }
-                                    "command" => {
-                                        history.command = value.unwrap().to_owned();
-                                    }
-                                    "time" => {
-                                        history.time = value.unwrap().to_owned();
-                                    }
-                                    "path" => {
-                                        history.path = value.unwrap().to_owned();
-                                    }
-                                    _ => {}
+                        args[2], DEFAULT_SIZE
+                    ),
+                    |pairs| {
+                        let mut history = History::new();
+                        for &(column, value) in pairs.iter() {
+                            match column {
+                                "id" => {
+                                    history.id = value.map(|x| x.parse().unwrap()).unwrap();
                                 }
+                                "command" => {
+                                    history.command = value.unwrap().to_owned();
+                                }
+                                "time" => {
+                                    history.time = value.unwrap().to_owned();
+                                }
+                                "path" => {
+                                    history.path = value.unwrap().to_owned();
+                                }
+                                _ => {}
                             }
-                            histories.push(history);
-                            true
-                        },
-                    )
-                    .unwrap();
-                print_histories(histories, Print::PrintPath);
-                Ok(())
+                        }
+                        histories.push(history);
+                        true
+                    },
+                ) {
+                    Ok(_) => {
+                        print_histories(histories, Print::PrintPath);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        Ok(())
+                    }
+                }
             }
             "-o" | "--output" => {
-                let mut histories = vec![];
+                let mut wtr = csv::WriterBuilder::new().from_writer(vec![]);
                 connection
                     .iterate(
                         "SELECT *
                                 FROM history",
                         |pairs| {
-                            let mut history = History::new();
+                            let mut history: [&str; 4] = ["", "", "", ""];
                             for &(column, value) in pairs.iter() {
                                 match column {
                                     "id" => {
-                                        history.id = value.map(|x| x.parse().unwrap()).unwrap();
+                                        history[0] = value.unwrap();
                                     }
                                     "command" => {
-                                        history.command = value.unwrap().to_owned();
+                                        history[1] = value.unwrap();
                                     }
                                     "time" => {
-                                        history.time = value.unwrap().to_owned();
+                                        history[2] = value.unwrap();
+                                    }
+                                    "path" => {
+                                        history[3] = value.unwrap();
                                     }
                                     _ => {}
                                 }
                             }
-                            histories.push(history);
-                            true
+                            match wtr.write_record(&history) {
+                                Ok(_) => true,
+                                Err(e) => {
+                                    eprintln!("{}", e);
+                                    false
+                                }
+                            }
                         },
                     )
                     .unwrap();
-                let j = json::to_string(&histories);
-                let j = j.as_bytes();
+
+                let data = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+
+                let data = data.as_bytes();
                 let output = {
                     let mut path = app_path;
-                    path.push("history.json");
+                    path.push("history.csv");
                     path
                 };
                 let mut buffer = std::fs::File::create(&output).unwrap();
-                buffer.write_all(j).unwrap();
-                Ok(())
+                match buffer.write_all(data) {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        Ok(())
+                    }
+                }
             }
             _ => Ok(()),
         }
