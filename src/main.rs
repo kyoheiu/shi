@@ -1,9 +1,11 @@
+mod help;
+
 use serde::Serialize;
 use sqlite::Connection;
 use std::{io::Write, path::PathBuf};
 use tabled::{locator::ByColumnName, Disable, Table, Tabled};
-const DEFAULT_SIZE: usize = 50;
 
+const DEFAULT_SIZE: usize = 50;
 #[derive(Tabled, Serialize)]
 struct History {
     id: usize,
@@ -71,8 +73,12 @@ fn main() -> Result<(), std::io::Error> {
                 Ok(())
             }
         }
-    } else if args.len() >= 2 {
+    } else {
         match args[1].as_str() {
+            "-h" | "--help" => {
+                println!("{}", help::HELP);
+                Ok(())
+            }
             "-a" | "--all" => {
                 let mut histories = vec![];
                 match connection.iterate(
@@ -147,6 +153,7 @@ fn main() -> Result<(), std::io::Error> {
             }
             "-d" | "--delete" => {
                 if args.len() == 2 {
+                    println!("Missing id.");
                     Ok(())
                 } else {
                     let keys = &args[2..args.len()];
@@ -343,6 +350,7 @@ fn main() -> Result<(), std::io::Error> {
             }
             _ => {
                 if args.len() >= 3 {
+                    println!("Invalid args.");
                     Ok(())
                 } else {
                     let rows: Result<usize, std::num::ParseIntError> = args[1].parse();
@@ -365,9 +373,6 @@ fn main() -> Result<(), std::io::Error> {
                 }
             }
         }
-    } else {
-        println!("No args.");
-        Ok(())
     }
 }
 
