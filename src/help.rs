@@ -1,5 +1,4 @@
-# shi
-
+pub const HELP: &str = r#"
 small history / 史
 
 An experimental alternative to bash history using sqlite.
@@ -14,16 +13,15 @@ cargo install --path .
 
 And add the following lines to the end of `.bashrc` file.
 
-_bash-preexec required. See [https://github.com/rcaloras/bash-preexec](https://github.com/rcaloras/bash-preexec)_
+bash-preexec required. See https://github.com/rcaloras/bash-preexec
 
-```bash
+```
 source ~/.bash-preexec.sh
 preexec() { shi --insert "$@"; }
 ```
 
 ## Usage
 
-```
 shi [rows]                Print the last {rows} commands and time. Default rows = 50
 
 Options:
@@ -34,4 +32,4 @@ Options:
   -p, --path <PATH>       Show commands that were executed in directories that match the query
   -c, --command <COMMAND> Show commands that match the query
   -o, --output            Export all the history to `~/.shi/history.csv`
-```
+"#;
