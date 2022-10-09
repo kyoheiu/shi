@@ -23,15 +23,17 @@ preexec() { shi --insert "$@"; }
 
 ## Usage
 
+At the first launch, `shi` creates sqlite database in `~/.shi/.history`.
+
 ```
-shi [rows]                Print the last {rows} commands and time. Default rows = 50
+shi [ROWS]                       Print executed commands and time. If no input 50
 
 Options:
-  -a, --all               Print all the history with the directory path where the command was executed
-  -i, --insert <COMMAND>  Insert the command to the history
-  -d, --delete <ID>       Delete the command that matches the id
-  -r, --remove            Drop the database table, delete all history
-  -p, --path <PATH>       Show commands that were executed in directories that match the query
-  -c, --command <COMMAND> Show commands that match the query
-  -o, --output            Export all the history to `~/.shi/history.csv`
+  -a, --all                      Print all the history with the directory path where the command was executed
+  -i, --insert <COMMAND>         Insert the command to the history
+  -d, --delete <ID>              Delete the command that matches the id
+  -r, --remove                   Drop the database table, delete all history
+  -p, --path <PATH> [ROWS]       Show commands that were executed in directories that match the query
+  -c, --command <COMMAND> [ROWS] Show commands that match the query
+  -o, --output                   Export all the history to `~/.shi/history.csv`
 ```
