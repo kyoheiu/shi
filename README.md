@@ -24,7 +24,7 @@ preexec() { shi --insert "$@"; }
 ## Usage
 
 ```
-shi                       Print the last 50 commands and time
+shi [rows]                      Print the last {rows} commands and time. Default rows = 50
 
 Options:
   -a, --all               Print all the history with the directory path where the command was executed
