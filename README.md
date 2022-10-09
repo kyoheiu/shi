@@ -2,7 +2,7 @@
 
 small history / 史
 
-An experimental alternative to bash history using sqlite.
+A tiny program to complement bash history using sqlite
 
 ## Installation
 
