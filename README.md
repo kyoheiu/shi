@@ -4,6 +4,10 @@ small history / 史
 
 A tiny program to complement bash history using sqlite
 
+![1.png](screenshots/1.png)
+![2.png](screenshots/2.png)
+![3.png](screenshots/3.png)
+
 ## Installation
 
 ```
