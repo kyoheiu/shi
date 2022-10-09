@@ -208,6 +208,15 @@ fn main() -> Result<(), std::io::Error> {
             "-p" | "--path" => {
                 println!("Printing commands executed in directories that match the query...\n");
                 let mut histories = vec![];
+                let rows = if args.len() == 4 {
+                    let rows: Result<usize, std::num::ParseIntError> = args[3].parse();
+                    match rows {
+                        Ok(rows) => rows,
+                        Err(_) => DEFAULT_SIZE,
+                    }
+                } else {
+                    DEFAULT_SIZE
+                };
                 match connection.iterate(
                     &format!(
                         "SELECT *
@@ -215,7 +224,7 @@ fn main() -> Result<(), std::io::Error> {
                             WHERE path LIKE '%{}%'
                             ORDER BY id DESC
                             LIMIT {}",
-                        args[2], DEFAULT_SIZE
+                        args[2], rows
                     ),
                     |pairs| {
                         let mut history = History::new();
@@ -253,6 +262,15 @@ fn main() -> Result<(), std::io::Error> {
             "-c" | "--command" => {
                 println!("Printing commands that match the query...\n");
                 let mut histories = vec![];
+                let rows = if args.len() == 4 {
+                    let rows: Result<usize, std::num::ParseIntError> = args[3].parse();
+                    match rows {
+                        Ok(rows) => rows,
+                        Err(_) => DEFAULT_SIZE,
+                    }
+                } else {
+                    DEFAULT_SIZE
+                };
                 match connection.iterate(
                     &format!(
                         "SELECT *
@@ -260,7 +278,7 @@ fn main() -> Result<(), std::io::Error> {
                             WHERE command LIKE '%{}%'
                             ORDER BY id DESC
                             LIMIT {}",
-                        args[2], DEFAULT_SIZE
+                        args[2], rows
                     ),
                     |pairs| {
                         let mut history = History::new();
