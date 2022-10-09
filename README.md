@@ -24,7 +24,7 @@ preexec() { shi --insert "$@"; }
 ## Usage
 
 ```
-shi [option]              Print the last 50 commands and time
+shi                       Print the last 50 commands and time
 
 Options:
   -a, --all               Print all the history with the directory path where the command was executed
@@ -33,5 +33,5 @@ Options:
   -r, --remove            Drop the database table, delete all history
   -p, --path <PATH>       Show commands that were executed in directories that match the query
   -c, --command <COMMAND> Show commands that match the query
-  -o, --output            Export all the history to `~/.shi/history.json`
+  -o, --output            Export all the history to `~/.shi/history.csv`
 ```

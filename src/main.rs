@@ -1,4 +1,5 @@
 use serde::Serialize;
+use sqlite::Connection;
 use std::{io::Write, path::PathBuf};
 use tabled::{locator::ByColumnName, Disable, Table, Tabled};
 const DEFAULT_SIZE: usize = 50;
@@ -60,37 +61,9 @@ fn main() -> Result<(), std::io::Error> {
 
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
-        let mut histories = vec![];
-        match connection.iterate(
-            &format!(
-                "SELECT *
-                    FROM history
-                    ORDER BY id DESC
-                    LIMIT {}",
-                DEFAULT_SIZE
-            ),
-            |pairs| {
-                let mut history = History::new();
-                for &(column, value) in pairs.iter() {
-                    match column {
-                        "id" => {
-                            history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                        }
-                        "command" => {
-                            history.command = value.unwrap().to_owned();
-                        }
-                        "time" => {
-                            history.time = value.unwrap().to_owned();
-                        }
-                        _ => {}
-                    }
-                }
-                histories.push(history);
-                true
-            },
-        ) {
-            Ok(_) => {
-                print_histories(histories, Print::IgnorePath);
+        match select_histories(connection, None) {
+            Ok(vec) => {
+                print_histories(vec, Print::IgnorePath);
                 Ok(())
             }
             Err(e) => {
@@ -198,7 +171,8 @@ fn main() -> Result<(), std::io::Error> {
                 }
             }
             "-r" | "--remove" => {
-                println!("Are you sure to delete all history?");
+                print!("Are you sure to delete all history? [y/N] ");
+                std::io::stdout().flush().unwrap();
                 let mut buffer = String::new();
                 std::io::stdin().read_line(&mut buffer).unwrap();
                 match buffer.as_str() {
@@ -367,7 +341,29 @@ fn main() -> Result<(), std::io::Error> {
                     }
                 }
             }
-            _ => Ok(()),
+            _ => {
+                if args.len() >= 3 {
+                    Ok(())
+                } else {
+                    let rows: Result<usize, std::num::ParseIntError> = args[1].parse();
+                    match rows {
+                        Ok(rows) => match select_histories(connection, Some(rows)) {
+                            Ok(vec) => {
+                                print_histories(vec, Print::IgnorePath);
+                                Ok(())
+                            }
+                            Err(e) => {
+                                eprintln!("{}", e);
+                                Ok(())
+                            }
+                        },
+                        Err(_) => {
+                            eprintln!("Cannot parse input as number.");
+                            Ok(())
+                        }
+                    }
+                }
+            }
         }
     } else {
         println!("No args.");
@@ -386,5 +382,47 @@ fn print_histories(mut histories: Vec<History>, ignore_path: Print) {
             table.with(Disable::column(ByColumnName::new("path")));
         }
         println!("{}", table);
+    }
+}
+
+fn select_histories(
+    connection: Connection,
+    rows: Option<usize>,
+) -> Result<Vec<History>, sqlite::Error> {
+    let mut histories = vec![];
+    let rows = match rows {
+        Some(rows) => rows,
+        None => DEFAULT_SIZE,
+    };
+    match connection.iterate(
+        &format!(
+            "SELECT *
+                    FROM history
+                    ORDER BY id DESC
+                    LIMIT {}",
+            rows
+        ),
+        |pairs| {
+            let mut history = History::new();
+            for &(column, value) in pairs.iter() {
+                match column {
+                    "id" => {
+                        history.id = value.map(|x| x.parse().unwrap()).unwrap();
+                    }
+                    "command" => {
+                        history.command = value.unwrap().to_owned();
+                    }
+                    "time" => {
+                        history.time = value.unwrap().to_owned();
+                    }
+                    _ => {}
+                }
+            }
+            histories.push(history);
+            true
+        },
+    ) {
+        Ok(_) => Ok(histories),
+        Err(e) => Err(e),
     }
 }
