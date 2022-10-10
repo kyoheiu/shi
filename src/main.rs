@@ -2,14 +2,9 @@ mod app;
 mod error;
 mod help;
 
-use error::ShiError;
-
-fn main() -> Result<(), ShiError> {
+fn main() {
     match app::run() {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            eprintln!("{}", e);
-            Ok(())
-        }
+        Ok(_) => (),
+        Err(e) => eprintln!("{}", e),
     }
 }
