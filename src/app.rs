@@ -1,11 +1,16 @@
 use super::error::ShiError;
 use super::help::HELP;
+use copypasta_ext::prelude::*;
+use copypasta_ext::x11_fork::ClipboardContext;
 use serde::Serialize;
 use sqlite::Connection;
 use std::io::Write;
 use tabled::{locator::ByColumnName, Disable, Table, Tabled};
 
 const DEFAULT_SIZE: usize = 50;
+const SHI_DIR: &str = "shi";
+const DB_NAME: &str = ".history";
+
 #[derive(Tabled, Serialize)]
 struct History {
     id: usize,
@@ -32,8 +37,9 @@ enum Print {
 }
 pub fn run() -> Result<(), ShiError> {
     let app_path = {
-        let mut path = dirs::home_dir().unwrap_or_else(|| panic!("Cannot detect home directory."));
-        path = path.join(".shi");
+        let mut path =
+            dirs::data_local_dir().unwrap_or_else(|| panic!("Cannot detect home directory."));
+        path = path.join(SHI_DIR);
         if !path.exists() {
             std::fs::create_dir(&path)?;
         }
@@ -41,7 +47,7 @@ pub fn run() -> Result<(), ShiError> {
     };
     let db_path = {
         let mut path = app_path.clone();
-        path.push(".history");
+        path.push(DB_NAME);
         path
     };
 
@@ -63,7 +69,7 @@ pub fn run() -> Result<(), ShiError> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
         let vec = select_histories(connection, None)?;
-        print_histories(vec, Print::IgnorePath);
+        print_histories_to_choose(vec, Print::IgnorePath)?;
         Ok(())
     } else {
         match args[1].as_str() {
@@ -101,7 +107,7 @@ pub fn run() -> Result<(), ShiError> {
                         true
                     },
                 )?;
-                print_histories(histories, Print::PrintPath);
+                print_histories_to_choose(histories, Print::PrintPath)?;
                 Ok(())
             }
             "-i" | "--insert" => {
@@ -213,7 +219,7 @@ pub fn run() -> Result<(), ShiError> {
                         true
                     },
                 )?;
-                print_histories(histories, Print::PrintPath);
+                print_histories_to_choose(histories, Print::PrintPath)?;
                 Ok(())
             }
             "-c" | "--command" => {
@@ -260,7 +266,7 @@ pub fn run() -> Result<(), ShiError> {
                         true
                     },
                 )?;
-                print_histories(histories, Print::PrintPath);
+                print_histories_to_choose(histories, Print::PrintPath)?;
                 Ok(())
             }
             "-o" | "--output" => {
@@ -287,7 +293,7 @@ pub fn run() -> Result<(), ShiError> {
                                 _ => {}
                             }
                         }
-                        match wtr.write_record(&history) {
+                        match wtr.write_record(history) {
                             Ok(_) => true,
                             Err(e) => {
                                 eprintln!("{}", e);
@@ -315,7 +321,7 @@ pub fn run() -> Result<(), ShiError> {
                 } else {
                     let rows = args[1].parse()?;
                     let vec = select_histories(connection, Some(rows))?;
-                    print_histories(vec, Print::IgnorePath);
+                    print_histories_to_choose(vec, Print::IgnorePath)?;
                     Ok(())
                 }
             }
@@ -323,19 +329,47 @@ pub fn run() -> Result<(), ShiError> {
     }
 }
 
-fn print_histories(mut histories: Vec<History>, ignore_path: Print) {
+fn print_histories_to_choose(
+    mut histories: Vec<History>,
+    ignore_path: Print,
+) -> Result<(), ShiError> {
     if histories.is_empty() {
         println!("No history.");
-    } else {
-        histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
-        let mut table = Table::new(histories);
-        table.with(tabled::Style::psql());
-        if ignore_path == Print::IgnorePath {
-            table.with(Disable::column(ByColumnName::new("path")));
-        }
-        println!("{}", table);
     }
+    histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+    let len = histories.len();
+    for (i, h) in histories.iter_mut().enumerate() {
+        h.id = len - i;
+    }
+    let mut table = Table::new(&histories);
+    table.with(tabled::Style::psql());
+    if ignore_path == Print::IgnorePath {
+        table.with(Disable::column(ByColumnName::new("path")));
+    }
+    println!("{}", table);
+    print!("> ");
+    std::io::stdout().flush()?;
+    let i = get_input_numnber()?;
+    if let Some(h) = histories.get(len - i) {
+        let commands: Vec<&str> = h.command.split_ascii_whitespace().collect();
+        copy_commands(commands)?;
+    }
+    Ok(())
 }
+
+// fn print_histories(mut histories: Vec<History>, ignore_path: Print) {
+//     if histories.is_empty() {
+//         println!("No history.");
+//     } else {
+//         histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+//         let mut table = Table::new(histories);
+//         table.with(tabled::Style::psql());
+//         if ignore_path == Print::IgnorePath {
+//             table.with(Disable::column(ByColumnName::new("path")));
+//         }
+//         println!("{}", table);
+//     }
+// }
 
 fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<History>, ShiError> {
     let mut histories = vec![];
@@ -372,4 +406,25 @@ fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<H
         },
     )?;
     Ok(histories)
+}
+
+fn copy_commands(commands: Vec<&str>) -> Result<(), ShiError> {
+    let commands = commands.join(" ");
+    let mut ctx = ClipboardContext::new()?;
+    ctx.set_contents(commands)?;
+    Ok(println!("Copied commands to the clipboard."))
+}
+
+fn get_input_numnber() -> Result<usize, ShiError> {
+    let mut input = String::new();
+    let stdin = std::io::stdin();
+    stdin.read_line(&mut input)?;
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        Err(ShiError::Input)
+    } else if let Ok(i) = input.trim().parse() {
+        Ok(i)
+    } else {
+        Err(ShiError::ParseInt)
+    }
 }
