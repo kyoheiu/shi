@@ -7,6 +7,7 @@ pub enum ShiError {
     FromUtf8(String),
     Copy,
     Input,
+    Env,
 }
 
 impl std::error::Error for ShiError {}
@@ -21,6 +22,7 @@ impl std::fmt::Display for ShiError {
             ShiError::FromUtf8(s) => s.as_ref(),
             ShiError::Copy => "Cannot connect to the clipboard.",
             ShiError::Input => "Exit.",
+            ShiError::Env => "Cannot detect env SHI_CLIP.",
         };
         write!(f, "{}", printable)
     }

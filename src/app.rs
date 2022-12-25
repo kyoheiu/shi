@@ -1,7 +1,5 @@
 use super::error::ShiError;
 use super::help::HELP;
-use copypasta_ext::prelude::*;
-use copypasta_ext::x11_fork::ClipboardContext;
 use serde::Serialize;
 use sqlite::Connection;
 use std::io::Write;
@@ -13,6 +11,7 @@ const DB_NAME: &str = ".history";
 
 #[derive(Tabled, Serialize)]
 struct History {
+    number: usize,
     id: usize,
     command: String,
     time: String,
@@ -22,6 +21,7 @@ struct History {
 impl History {
     fn new() -> History {
         History {
+            number: 0,
             id: 0,
             command: "".to_string(),
             time: "".to_string(),
@@ -78,6 +78,9 @@ pub fn run() -> Result<(), ShiError> {
                 Ok(())
             }
             "-a" | "--all" => {
+                if args.len() > 2 {
+                    eprintln!("Invalid argument: See help.");
+                }
                 let mut histories = vec![];
                 connection.iterate(
                     "SELECT *
@@ -107,7 +110,7 @@ pub fn run() -> Result<(), ShiError> {
                         true
                     },
                 )?;
-                print_histories_to_choose(histories, Print::PrintPath)?;
+                print_histories(histories);
                 Ok(())
             }
             "-i" | "--insert" => {
@@ -117,7 +120,7 @@ pub fn run() -> Result<(), ShiError> {
                 {
                     Ok(())
                 } else {
-                    let command = args[2..args.len()].join(" ");
+                    let command = args[2..].join(" ");
                     let path = std::env::current_dir()?;
                     connection.execute(format!(
                         "
@@ -134,12 +137,12 @@ pub fn run() -> Result<(), ShiError> {
                     Ok(())
                 }
             }
-            "-d" | "--delete" => {
+            "-r" | "--remove" => {
                 if args.len() == 2 {
                     println!("Missing id.");
                     Ok(())
                 } else {
-                    let keys = &args[2..args.len()];
+                    let keys = &args[2..];
                     for key in keys {
                         let key: usize = key.parse()?;
                         connection.execute(format!(
@@ -154,7 +157,7 @@ pub fn run() -> Result<(), ShiError> {
                     Ok(())
                 }
             }
-            "-r" | "--remove" => {
+            "--drop" => {
                 print!("Are you sure to delete all history? [y/N] ");
                 std::io::stdout().flush()?;
                 let mut buffer = String::new();
@@ -188,7 +191,7 @@ pub fn run() -> Result<(), ShiError> {
                     DEFAULT_SIZE
                 };
                 connection.iterate(
-                    &format!(
+                    format!(
                         "SELECT *
                             FROM history
                             WHERE path LIKE '%{}%'
@@ -235,7 +238,7 @@ pub fn run() -> Result<(), ShiError> {
                     DEFAULT_SIZE
                 };
                 connection.iterate(
-                    &format!(
+                    format!(
                         "SELECT *
                             FROM history
                             WHERE command LIKE '%{}%'
@@ -310,7 +313,7 @@ pub fn run() -> Result<(), ShiError> {
                     path.push("history.csv");
                     path
                 };
-                let mut buffer = std::fs::File::create(&output).unwrap();
+                let mut buffer = std::fs::File::create(output).unwrap();
                 buffer.write_all(data)?;
                 Ok(())
             }
@@ -339,7 +342,7 @@ fn print_histories_to_choose(
     histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
     let len = histories.len();
     for (i, h) in histories.iter_mut().enumerate() {
-        h.id = len - i;
+        h.number = len - i;
     }
     let mut table = Table::new(&histories);
     table.with(tabled::Style::psql());
@@ -347,29 +350,27 @@ fn print_histories_to_choose(
         table.with(Disable::column(ByColumnName::new("path")));
     }
     println!("{}", table);
-    print!("> ");
+    print!("Input number to copy command: > ");
     std::io::stdout().flush()?;
-    let i = get_input_numnber()?;
+    let i = get_input_number()?;
     if let Some(h) = histories.get(len - i) {
         let commands: Vec<&str> = h.command.split_ascii_whitespace().collect();
-        copy_commands(commands)?;
+        copy_command(commands)?;
     }
     Ok(())
 }
 
-// fn print_histories(mut histories: Vec<History>, ignore_path: Print) {
-//     if histories.is_empty() {
-//         println!("No history.");
-//     } else {
-//         histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
-//         let mut table = Table::new(histories);
-//         table.with(tabled::Style::psql());
-//         if ignore_path == Print::IgnorePath {
-//             table.with(Disable::column(ByColumnName::new("path")));
-//         }
-//         println!("{}", table);
-//     }
-// }
+fn print_histories(mut histories: Vec<History>) {
+    if histories.is_empty() {
+        println!("No history.");
+    } else {
+        histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+        let mut table = Table::new(histories);
+        table.with(tabled::Style::psql());
+        table.with(Disable::column(ByColumnName::new("number")));
+        println!("{}", table);
+    }
+}
 
 fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<History>, ShiError> {
     let mut histories = vec![];
@@ -378,7 +379,7 @@ fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<H
         None => DEFAULT_SIZE,
     };
     connection.iterate(
-        &format!(
+        format!(
             "SELECT *
                     FROM history
                     ORDER BY id DESC
@@ -408,14 +409,27 @@ fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<H
     Ok(histories)
 }
 
-fn copy_commands(commands: Vec<&str>) -> Result<(), ShiError> {
+fn copy_command(commands: Vec<&str>) -> Result<(), ShiError> {
     let commands = commands.join(" ");
-    let mut ctx = ClipboardContext::new()?;
-    ctx.set_contents(commands)?;
+    let copy_command = std::env::var("SHI_CLIP");
+    match copy_command {
+        Ok(copy_command) => {
+            let mut p = std::process::Command::new(copy_command)
+                .stdin(std::process::Stdio::piped())
+                .spawn()?;
+            let mut stdin = p.stdin.take().expect("Failed to open stdin.");
+            std::thread::spawn(move || {
+                stdin
+                    .write_all(commands.as_bytes())
+                    .expect("Failed to pass command via stdin.");
+            });
+        }
+        Err(_) => return Err(ShiError::Env),
+    }
     Ok(println!("Copied commands to the clipboard."))
 }
 
-fn get_input_numnber() -> Result<usize, ShiError> {
+fn get_input_number() -> Result<usize, ShiError> {
     let mut input = String::new();
     let stdin = std::io::stdin();
     stdin.read_line(&mut input)?;
