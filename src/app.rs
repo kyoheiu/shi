@@ -11,7 +11,7 @@ const DB_NAME: &str = ".history";
 
 #[derive(Tabled, Serialize)]
 struct History {
-    number: usize,
+    link: String,
     id: usize,
     command: String,
     time: String,
@@ -21,7 +21,7 @@ struct History {
 impl History {
     fn new() -> History {
         History {
-            number: 0,
+            link: "".to_owned(),
             id: 0,
             command: "".to_string(),
             time: "".to_string(),
@@ -38,7 +38,7 @@ enum Print {
 pub fn run() -> Result<(), ShiError> {
     let app_path = {
         let mut path =
-            dirs::data_local_dir().unwrap_or_else(|| panic!("Cannot detect home directory."));
+            dirs::data_local_dir().unwrap_or_else(|| panic!("Cannot detect data local directory."));
         path = path.join(SHI_DIR);
         if !path.exists() {
             std::fs::create_dir(&path)?;
@@ -114,10 +114,7 @@ pub fn run() -> Result<(), ShiError> {
                 Ok(())
             }
             "-i" | "--insert" => {
-                if args.len() == 2
-                    || args[2].starts_with(' ')
-                    || (args[2] == "shi" && args.len() == 3)
-                {
+                if args.len() == 2 || args[2].starts_with(' ') {
                     Ok(())
                 } else {
                     let command = args[2..].join(" ");
@@ -342,7 +339,7 @@ fn print_histories_to_choose(
     histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
     let len = histories.len();
     for (i, h) in histories.iter_mut().enumerate() {
-        h.number = len - i;
+        h.link = super::link::to_base32(len - i);
     }
     let mut table = Table::new(&histories);
     table.with(tabled::Style::psql());
@@ -350,9 +347,9 @@ fn print_histories_to_choose(
         table.with(Disable::column(ByColumnName::new("path")));
     }
     println!("{}", table);
-    print!("Input number to copy command: > ");
+    print!("Enter the link (left-most chars) to copy command > ");
     std::io::stdout().flush()?;
-    let i = get_input_number()?;
+    let i = get_input_link()?;
     if let Some(h) = histories.get(len - i) {
         let commands: Vec<&str> = h.command.split_ascii_whitespace().collect();
         copy_command(commands)?;
@@ -411,6 +408,7 @@ fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<H
 
 fn copy_command(commands: Vec<&str>) -> Result<(), ShiError> {
     let commands = commands.join(" ");
+    println!("Copying command: {}", commands);
     let copy_command = std::env::var("SHI_CLIP");
     match copy_command {
         Ok(copy_command) => {
@@ -426,17 +424,17 @@ fn copy_command(commands: Vec<&str>) -> Result<(), ShiError> {
         }
         Err(_) => return Err(ShiError::Env),
     }
-    Ok(println!("Copied commands to the clipboard."))
+    Ok(println!("Command copied to the clipboard."))
 }
 
-fn get_input_number() -> Result<usize, ShiError> {
+fn get_input_link() -> Result<usize, ShiError> {
     let mut input = String::new();
     let stdin = std::io::stdin();
     stdin.read_line(&mut input)?;
     let trimmed = input.trim();
     if trimmed.is_empty() {
         Err(ShiError::Input)
-    } else if let Ok(i) = input.trim().parse() {
+    } else if let Some(i) = super::link::from_base32(trimmed) {
         Ok(i)
     } else {
         Err(ShiError::ParseInt)

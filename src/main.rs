@@ -1,6 +1,7 @@
 mod app;
 mod error;
 mod help;
+mod link;
 
 fn main() {
     match app::run() {
