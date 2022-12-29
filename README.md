@@ -2,8 +2,8 @@
 
 small history / 史
 
-A tiny program to add time and place to bash history.
-Also enables you to copy a command to the clipboard!
+A tiny program to add time and place to shell history.  
+Also enables you to copy a command to the clipboard.
 
 ![screenshot.png](screenshots/screenshot.png)
 
@@ -15,7 +15,9 @@ cd shi
 cargo install --path .
 ```
 
-And add the following lines to the end of `.bashrc` file.
+And add the preexec hook to your shell config file.
+
+For bash:
 
 _bash-preexec required. See [https://github.com/rcaloras/bash-preexec](https://github.com/rcaloras/bash-preexec)_
 
@@ -23,6 +25,8 @@ _bash-preexec required. See [https://github.com/rcaloras/bash-preexec](https://g
 source ~/.bash-preexec.sh
 preexec() { shi --insert "$@"; }
 ```
+
+For zsh or fish, you can use preexec hook.
 
 ### Option
 
