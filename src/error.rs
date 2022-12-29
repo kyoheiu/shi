@@ -16,7 +16,7 @@ impl std::fmt::Display for ShiError {
         let printable = match self {
             ShiError::Io(s) => s.as_ref(),
             ShiError::Db(s) => s.as_ref(),
-            ShiError::ParseInt => "Cannot parse input as number.",
+            ShiError::ParseInt => "Cannot parse input as link.",
             ShiError::IntoInner(s) => s.as_ref(),
             ShiError::FromUtf8(s) => s.as_ref(),
             ShiError::Copy => "Cannot connect to the clipboard.",
