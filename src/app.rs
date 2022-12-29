@@ -416,11 +416,9 @@ fn copy_command(commands: Vec<&str>) -> Result<(), ShiError> {
                 .stdin(std::process::Stdio::piped())
                 .spawn()?;
             let mut stdin = p.stdin.take().expect("Failed to open stdin.");
-            std::thread::spawn(move || {
-                stdin
-                    .write_all(commands.as_bytes())
-                    .expect("Failed to pass command via stdin.");
-            });
+            stdin
+                .write_all(commands.as_bytes())
+                .expect("Failed to pass command via stdin.");
         }
         Err(_) => return Err(ShiError::Env),
     }
