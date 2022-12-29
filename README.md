@@ -3,10 +3,9 @@
 small history / 史
 
 A tiny program to add time and place to bash history.
+Also enables you to copy a command to the clipboard!
 
-![1.png](screenshots/1.png)
-![2.png](screenshots/2.png)
-![3.png](screenshots/3.png)
+![screenshot.png](screenshots/screenshot.png)
 
 ## Installation
 
@@ -25,9 +24,13 @@ source ~/.bash-preexec.sh
 preexec() { shi --insert "$@"; }
 ```
 
+### Option
+
+If you'd like to copy a command to the clipboard, set any clipboard utility such as `xclip` or `wl-copy` as `$SHI_CLIP`.
+
 ## Usage
 
-At the first launch, `shi` creates sqlite database in `~/.shi/.history`.
+At the first launch, `shi` creates sqlite database in `$XDG_DATA_HOME/shi/.history` (on Linux, in most case it should be `~/.local/share/shi/.history`).
 
 ```
 shi [ROWS]                       Print executed commands and time. (If no input, 50)
@@ -41,6 +44,3 @@ Options:
   -o, --output                   Export all the history to `~/.shi/history.csv`
   --drop                         Drop the database table: Delete all history
 ```
-
-Unless you set `-a` option, you can choose the number (leftest integer) to copy the command to the system clipboard.  
-To copy, set the environment variable `$SHI_CLIP`: i.e. `SHI_CLIP=wl-copy`.
