@@ -1,5 +1,6 @@
 use super::error::ShiError;
 use super::help::HELP;
+use crossterm::style::Stylize;
 use serde::Serialize;
 use sqlite::Connection;
 use std::io::Write;
@@ -347,14 +348,22 @@ fn print_histories_to_choose(
         table.with(Disable::column(ByColumnName::new("path")));
     }
     println!("{}", table);
+
+    match std::env::var("SHI_CLIP") {
+        Err(_) => {
+            Ok(println!("If you'd like to copy a command to the clipboard, set any clipboard utility such as xclip or wl-copy as $SHI_CLIP."))
+        }
+        Ok(copy) => {
+
     print!("Enter the link (left-most chars) to copy command > ");
     std::io::stdout().flush()?;
     let i = get_input_link()?;
     if let Some(h) = histories.get(len - i) {
-        let commands: Vec<&str> = h.command.split_ascii_whitespace().collect();
-        copy_command(commands)?;
+        copy_command(copy, &h.command)?;
     }
     Ok(())
+        }
+    }
 }
 
 fn print_histories(mut histories: Vec<History>) {
@@ -406,23 +415,16 @@ fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<H
     Ok(histories)
 }
 
-fn copy_command(commands: Vec<&str>) -> Result<(), ShiError> {
-    let commands = commands.join(" ");
-    println!("Copying command: {}", commands);
-    let copy_command = std::env::var("SHI_CLIP");
-    match copy_command {
-        Ok(copy_command) => {
-            let mut p = std::process::Command::new(copy_command)
-                .stdin(std::process::Stdio::piped())
-                .spawn()?;
-            let mut stdin = p.stdin.take().expect("Failed to open stdin.");
-            stdin
-                .write_all(commands.as_bytes())
-                .expect("Failed to pass command via stdin.");
-        }
-        Err(_) => return Err(ShiError::Env),
-    }
-    Ok(println!("Command copied to the clipboard."))
+fn copy_command(copy_command: String, commands: &str) -> Result<(), ShiError> {
+    println!("Copying command => {}", commands.green());
+    let mut p = std::process::Command::new(copy_command)
+        .stdin(std::process::Stdio::piped())
+        .spawn()?;
+    let mut stdin = p.stdin.take().expect("Failed to open stdin.");
+    stdin
+        .write_all(commands.as_bytes())
+        .expect("Failed to pass command via stdin.");
+    Ok(println!("✌ Copied to the clipboard."))
 }
 
 fn get_input_link() -> Result<usize, ShiError> {
