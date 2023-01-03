@@ -19,7 +19,7 @@ And add the preexec hook to your shell config file.
 
 For bash:
 
-_bash-preexec required. See [https://github.com/rcaloras/bash-preexec](https://github.com/rcaloras/bash-preexec)_
+_(bash-preexec required. See [https://github.com/rcaloras/bash-preexec](https://github.com/rcaloras/bash-preexec))_
 
 ```bash
 source ~/.bash-preexec.sh
