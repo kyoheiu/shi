@@ -9,6 +9,8 @@ Also enables you to copy a command to the clipboard.
 
 ## Installation
 
+***You must have sqlite installed.***
+
 ```
 git clone https://github.com/kyoheiu/shi.git
 cd shi
