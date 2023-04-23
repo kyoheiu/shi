@@ -4,7 +4,7 @@ use crossterm::style::Stylize;
 use serde::Serialize;
 use sqlite::Connection;
 use std::io::Write;
-use tabled::{locator::ByColumnName, Disable, Table, Tabled};
+use tabled::{settings::locator::ByColumnName, settings::Disable, settings::Style, Table, Tabled};
 
 const DEFAULT_SIZE: usize = 50;
 const SHI_DIR: &str = "shi";
@@ -338,12 +338,13 @@ fn print_histories_to_choose(
         println!("No history.");
     }
     histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
+    histories.pop();
     let len = histories.len();
     for (i, h) in histories.iter_mut().enumerate() {
         h.link = super::link::to_base32(len - i);
     }
     let mut table = Table::new(&histories);
-    table.with(tabled::Style::psql());
+    table.with(Style::psql());
     if ignore_path == Print::IgnorePath {
         table.with(Disable::column(ByColumnName::new("path")));
     }
@@ -370,9 +371,10 @@ fn print_histories(mut histories: Vec<History>) {
     if histories.is_empty() {
         println!("No history.");
     } else {
+        histories.pop();
         histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
         let mut table = Table::new(histories);
-        table.with(tabled::Style::psql());
+        table.with(Style::psql());
         table.with(Disable::column(ByColumnName::new("number")));
         println!("{}", table);
     }
@@ -381,8 +383,8 @@ fn print_histories(mut histories: Vec<History>) {
 fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<History>, ShiError> {
     let mut histories = vec![];
     let rows = match rows {
-        Some(rows) => rows,
-        None => DEFAULT_SIZE,
+        Some(rows) => rows + 1,
+        None => DEFAULT_SIZE + 1,
     };
     connection.iterate(
         format!(
