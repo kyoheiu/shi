@@ -2,8 +2,17 @@
 name = "shi"
 version = "0.3.2"
 edition = "2021"
+authors = ["Kyohei Uto <im@kyoheiu.dev>"]
+description = "A tiny program to add the time and place to your shell history. This also enables you to copy a command to the clipboard."
+readme = "README.md"
+repository = ""
+license = "MIT"
+keywords = ["cli", "shell", "history"]
+categories = ["command-line-utilities"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "shi"
+path = "src/main.rs"
 
 [dependencies]
 crossterm = "0.26.1"
