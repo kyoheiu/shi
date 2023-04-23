@@ -305,7 +305,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shi"
+name = "shi_history"
 version = "0.3.2"
 dependencies = [
  "crossterm",
