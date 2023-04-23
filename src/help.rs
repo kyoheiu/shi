@@ -1,7 +1,8 @@
 pub const HELP: &str = r#"
 small history / 史
 
-An alternative to bash history using sqlite.
+A tiny program to add the time and place to your shell history.
+This also enables you to copy a command to the clipboard.
 
 ## Installation
 
