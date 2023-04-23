@@ -2,8 +2,8 @@
 
 small history / 史
 
-A tiny program to add time and place to shell history.\
-Also enables you to copy a command to the clipboard.
+A tiny program to add the time and place to your shell history.\
+This also enables you to copy a command to the clipboard.
 
 ![screenshot.png](screenshots/screenshot.png)
 
