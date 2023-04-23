@@ -1,14 +1,14 @@
 [package]
 name = "shi"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossterm = "0.25.0"
+crossterm = "0.26.1"
 csv = "1.1.6"
-dirs = "4.0.0"
+dirs = "5.0.0"
 serde = { version = "1.0.145", features = ["derive"] }
-sqlite = "0.27.0"
-tabled = "0.9.0"
+sqlite = "0.30.4"
+tabled = "0.12.0"
