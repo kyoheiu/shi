@@ -356,7 +356,7 @@ fn print_histories_to_choose(
         }
         Ok(copy) => {
 
-    print!("Enter the link (left-most chars) to copy command > ");
+    print!("Enter the link (left-most chars) to copy the command > ");
     std::io::stdout().flush()?;
     let i = get_input_link()?;
     if let Some(h) = histories.get(len - i) {
