@@ -11,8 +11,10 @@ This also enables you to copy a command to the clipboard.
 
 _**You must have sqlite installed.**_
 
+`cargo install shi_history`, or
+
 ```
-git clone https://github.com/kyoheiu/shi.git
+git clone https://git.sr.ht/~kyoheiu/shi
 cd shi
 cargo install --path .
 ```

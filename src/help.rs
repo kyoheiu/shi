@@ -6,8 +6,10 @@ This also enables you to copy a command to the clipboard.
 
 ## Installation
 
+`cargo install shi_history`, or
+
 ```
-git clone https://github.com/kyoheiu/shi.git
+git clone https://git.sr.ht/~kyoheiu/shi
 cd shi
 cargo install --path .
 ```
