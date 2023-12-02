@@ -2,7 +2,7 @@ use super::error::ShiError;
 use super::help::HELP;
 use crossterm::style::Stylize;
 use serde::Serialize;
-use sqlite::Connection;
+use sqlite::{Connection, State};
 use std::io::Write;
 use tabled::{settings::locator::ByColumnName, settings::Disable, settings::Style, Table, Tabled};
 
@@ -120,18 +120,15 @@ pub fn run() -> Result<(), ShiError> {
                 } else {
                     let command = args[2..].join(" ");
                     let path = std::env::current_dir()?;
-                    connection.execute(format!(
-                        "
-                            INSERT INTO history (time, command, path)
-                            VALUES (
-                                datetime('now', 'localtime'), 
-                                '{}',
-                                '{}'
-                            );
-                            ",
-                        command,
-                        path.display()
-                    ))?;
+                    let path = path
+                        .to_str()
+                        .unwrap_or_else(|| panic!("Cannot convert path to UTF8."));
+                    let query = " INSERT INTO history (time, command, path) VALUES ( datetime('now', 'localtime'), :command, :path);";
+                    let mut statement = connection.prepare(query)?;
+                    statement.bind(&[(":command", command.as_str()), (":path", path)][..])?;
+                    while let Ok(State::Row) = statement.next() {
+                        continue;
+                    }
                     Ok(())
                 }
             }
@@ -142,15 +139,12 @@ pub fn run() -> Result<(), ShiError> {
                 } else {
                     let keys = &args[2..];
                     for key in keys {
-                        let key: usize = key.parse()?;
-                        connection.execute(format!(
-                            "
-                            DELETE FROM history
-                            WHERE id = {};
-                        ",
-                            key
-                        ))?;
-                        println!("Deleted id {}.", key);
+                        let query = " DELETE FROM history WHERE id = :id;";
+                        let mut statement = connection.prepare(query)?;
+                        statement.bind((":id", key.as_str()))?;
+                        while let Ok(State::Row) = statement.next() {
+                            println!("Deleted id {}.", key);
+                        }
                     }
                     Ok(())
                 }
@@ -180,46 +174,25 @@ pub fn run() -> Result<(), ShiError> {
                 println!("Printing commands executed in directories that match the query...\n");
                 let mut histories = vec![];
                 let rows = if args.len() == 4 {
-                    let rows: Result<usize, std::num::ParseIntError> = args[3].parse();
-                    match rows {
-                        Ok(rows) => rows,
-                        Err(_) => DEFAULT_SIZE,
-                    }
+                    args[3].to_owned()
                 } else {
-                    DEFAULT_SIZE
+                    DEFAULT_SIZE.to_string()
                 };
-                connection.iterate(
-                    format!(
-                        "SELECT *
-                            FROM history
-                            WHERE path LIKE '%{}%'
-                            ORDER BY id DESC
-                            LIMIT {}",
-                        args[2], rows
-                    ),
-                    |pairs| {
-                        let mut history = History::new();
-                        for &(column, value) in pairs.iter() {
-                            match column {
-                                "id" => {
-                                    history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                                }
-                                "command" => {
-                                    history.command = value.unwrap().to_owned();
-                                }
-                                "time" => {
-                                    history.time = value.unwrap().to_owned();
-                                }
-                                "path" => {
-                                    history.path = value.unwrap().to_owned();
-                                }
-                                _ => {}
-                            }
-                        }
-                        histories.push(history);
-                        true
-                    },
-                )?;
+                let query =
+                    "SELECT * FROM history WHERE path LIKE '%'||?||'%' ORDER BY id DESC LIMIT ?";
+                for row in connection
+                    .prepare(query)?
+                    .into_iter()
+                    .bind(&[(1, args[2].as_str()), (2, &rows)][..])?
+                    .map(|row| row.unwrap())
+                {
+                    let mut history = History::new();
+                    history.id = row.read::<i64, _>("id") as usize;
+                    history.command = row.read::<&str, _>("command").to_string();
+                    history.time = row.read::<&str, _>("time").to_string();
+                    history.path = row.read::<&str, _>("path").to_string();
+                    histories.push(history);
+                }
                 print_histories_to_choose(histories, Print::PrintPath)?;
                 Ok(())
             }
@@ -227,46 +200,25 @@ pub fn run() -> Result<(), ShiError> {
                 println!("Printing commands that match the query...\n");
                 let mut histories = vec![];
                 let rows = if args.len() == 4 {
-                    let rows: Result<usize, std::num::ParseIntError> = args[3].parse();
-                    match rows {
-                        Ok(rows) => rows,
-                        Err(_) => DEFAULT_SIZE,
-                    }
+                    args[3].to_owned()
                 } else {
-                    DEFAULT_SIZE
+                    DEFAULT_SIZE.to_string()
                 };
-                connection.iterate(
-                    format!(
-                        "SELECT *
-                            FROM history
-                            WHERE command LIKE '%{}%'
-                            ORDER BY id DESC
-                            LIMIT {}",
-                        args[2], rows
-                    ),
-                    |pairs| {
-                        let mut history = History::new();
-                        for &(column, value) in pairs.iter() {
-                            match column {
-                                "id" => {
-                                    history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                                }
-                                "command" => {
-                                    history.command = value.unwrap().to_owned();
-                                }
-                                "time" => {
-                                    history.time = value.unwrap().to_owned();
-                                }
-                                "path" => {
-                                    history.path = value.unwrap().to_owned();
-                                }
-                                _ => {}
-                            }
-                        }
-                        histories.push(history);
-                        true
-                    },
-                )?;
+                let query =
+                    "SELECT * FROM history WHERE command LIKE '%'||?||'%' ORDER BY id DESC LIMIT ?";
+                for row in connection
+                    .prepare(query)?
+                    .into_iter()
+                    .bind(&[(1, args[2].as_str()), (2, &rows)][..])?
+                    .map(|row| row.unwrap())
+                {
+                    let mut history = History::new();
+                    history.id = row.read::<i64, _>("id") as usize;
+                    history.command = row.read::<&str, _>("command").to_string();
+                    history.time = row.read::<&str, _>("time").to_string();
+                    history.path = row.read::<&str, _>("path").to_string();
+                    histories.push(history);
+                }
                 print_histories_to_choose(histories, Print::PrintPath)?;
                 Ok(())
             }
@@ -386,34 +338,20 @@ fn select_histories(connection: Connection, rows: Option<usize>) -> Result<Vec<H
         Some(rows) => rows + 1,
         None => DEFAULT_SIZE + 1,
     };
-    connection.iterate(
-        format!(
-            "SELECT *
-                    FROM history
-                    ORDER BY id DESC
-                    LIMIT {}",
-            rows
-        ),
-        |pairs| {
-            let mut history = History::new();
-            for &(column, value) in pairs.iter() {
-                match column {
-                    "id" => {
-                        history.id = value.map(|x| x.parse().unwrap()).unwrap();
-                    }
-                    "command" => {
-                        history.command = value.unwrap().to_owned();
-                    }
-                    "time" => {
-                        history.time = value.unwrap().to_owned();
-                    }
-                    _ => {}
-                }
-            }
-            histories.push(history);
-            true
-        },
-    )?;
+    let query = "SELECT * FROM history ORDER BY id DESC LIMIT ?";
+    for row in connection
+        .prepare(query)?
+        .into_iter()
+        .bind(&[(1, rows.to_string().as_str())][..])?
+        .map(|row| row.unwrap())
+    {
+        let mut history = History::new();
+        history.id = row.read::<i64, _>("id") as usize;
+        history.command = row.read::<&str, _>("command").to_string();
+        history.time = row.read::<&str, _>("time").to_string();
+        history.path = row.read::<&str, _>("path").to_string();
+        histories.push(history);
+    }
     Ok(histories)
 }
 
