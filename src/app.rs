@@ -4,13 +4,12 @@ use crossterm::style::Stylize;
 use serde::Serialize;
 use sqlite::{Connection, State};
 use std::io::Write;
-use tabled::{settings::locator::ByColumnName, settings::Disable, settings::Style, Table, Tabled};
 
 const DEFAULT_SIZE: usize = 50;
 const SHI_DIR: &str = "shi";
 const DB_NAME: &str = ".history";
 
-#[derive(Tabled, Serialize)]
+#[derive(Serialize)]
 struct History {
     link: String,
     id: usize,
@@ -294,20 +293,31 @@ fn print_histories_to_choose(
     let len = histories.len();
     for (i, h) in histories.iter_mut().enumerate() {
         h.link = super::link::to_base32(len - i);
+        if ignore_path == Print::IgnorePath {
+            println!(
+                "{} {} {} @{} ({})",
+                h.link.clone().yellow(),
+                h.command.clone().blue(),
+                h.time,
+                h.path,
+                h.id
+            );
+        } else {
+            println!(
+                "{} {} @{} ({})",
+                h.link.clone().yellow(),
+                h.command.clone().blue(),
+                h.time,
+                h.id
+            );
+        }
     }
-    let mut table = Table::new(&histories);
-    table.with(Style::psql());
-    if ignore_path == Print::IgnorePath {
-        table.with(Disable::column(ByColumnName::new("path")));
-    }
-    println!("{}", table);
 
     match std::env::var("SHI_CLIP") {
         Err(_) => {
             Ok(println!("If you'd like to copy a command to the clipboard, set any clipboard utility such as xclip or wl-copy as $SHI_CLIP."))
         }
         Ok(copy) => {
-
     print!("Enter the link (left-most chars) to copy the command > ");
     std::io::stdout().flush()?;
     let i = get_input_link()?;
@@ -325,10 +335,15 @@ fn print_histories(mut histories: Vec<History>) {
     } else {
         histories.pop();
         histories.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
-        let mut table = Table::new(histories);
-        table.with(Style::psql());
-        table.with(Disable::column(ByColumnName::new("number")));
-        println!("{}", table);
+        for h in histories {
+            println!(
+                "{} {} @{} {}",
+                h.id,
+                h.command.clone().blue(),
+                h.time,
+                h.path,
+            );
+        }
     }
 }
 
