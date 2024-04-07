@@ -297,7 +297,7 @@ fn print_histories_to_choose(
             println!(
                 "{} {} {} @{} ({})",
                 h.link.clone().yellow(),
-                h.command.clone().blue(),
+                h.command.clone().magenta(),
                 h.time,
                 h.path,
                 h.id
@@ -306,7 +306,7 @@ fn print_histories_to_choose(
             println!(
                 "{} {} @{} ({})",
                 h.link.clone().yellow(),
-                h.command.clone().blue(),
+                h.command.clone().magenta(),
                 h.time,
                 h.id
             );
