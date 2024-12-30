@@ -1,11 +1,11 @@
 [package]
 name = "shi_history"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["Kyohei Uto <im@kyoheiu.dev>"]
 description = "A tiny program to add the time and place to your shell history. This also enables you to copy a command to the clipboard."
 readme = "README.md"
-repository = "https://git.sr.ht/~kyoheiu/"
+repository = "https://github.com/kyoheiu/shi"
 license = "MIT"
 keywords = ["cli", "shell", "history"]
 categories = ["command-line-utilities"]
