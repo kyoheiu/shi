@@ -195,32 +195,6 @@ pub fn run() -> Result<(), ShiError> {
                 print_histories_to_choose(histories, Print::PrintPath)?;
                 Ok(())
             }
-            "-c" | "--command" => {
-                println!("Printing commands that match the query...\n");
-                let mut histories = vec![];
-                let rows = if args.len() == 4 {
-                    args[3].to_owned()
-                } else {
-                    DEFAULT_SIZE.to_string()
-                };
-                let query =
-                    "SELECT * FROM history WHERE command LIKE '%'||?||'%' ORDER BY id DESC LIMIT ?";
-                for row in connection
-                    .prepare(query)?
-                    .into_iter()
-                    .bind(&[(1, args[2].as_str()), (2, &rows)][..])?
-                    .map(|row| row.unwrap())
-                {
-                    let mut history = History::new();
-                    history.id = row.read::<i64, _>("id") as usize;
-                    history.command = row.read::<&str, _>("command").to_string();
-                    history.time = row.read::<&str, _>("time").to_string();
-                    history.path = row.read::<&str, _>("path").to_string();
-                    histories.push(history);
-                }
-                print_histories_to_choose(histories, Print::PrintPath)?;
-                Ok(())
-            }
             "-o" | "--output" => {
                 let mut wtr = csv::WriterBuilder::new().from_writer(vec![]);
                 connection.iterate(
@@ -267,15 +241,35 @@ pub fn run() -> Result<(), ShiError> {
                 Ok(())
             }
             _ => {
-                if args.len() >= 3 {
-                    println!("Invalid args.");
-                    Ok(())
-                } else {
-                    let rows = args[1].parse()?;
-                    let vec = select_histories(connection, Some(rows))?;
-                    print_histories_to_choose(vec, Print::IgnorePath)?;
-                    Ok(())
+                if args.len() > 3 {
+                    return Err(ShiError::Arg);
                 }
+                println!("Printing commands that match the query...\n");
+                let mut histories = vec![];
+                // add 1 compensate for the 1st row being excluded
+                let rows = if args.len() == 3 {
+                    let parsed = args[2].parse::<usize>()?;
+                    (parsed + 1).to_string()
+                } else {
+                    (DEFAULT_SIZE + 1).to_string()
+                };
+                let query =
+                    "SELECT * FROM history WHERE command LIKE '%'||?||'%' ORDER BY id DESC LIMIT ?";
+                for row in connection
+                    .prepare(query)?
+                    .into_iter()
+                    .bind(&[(1, args[1].as_str()), (2, &rows)][..])?
+                    .map(|row| row.unwrap())
+                {
+                    let mut history = History::new();
+                    history.id = row.read::<i64, _>("id") as usize;
+                    history.command = row.read::<&str, _>("command").to_string();
+                    history.time = row.read::<&str, _>("time").to_string();
+                    history.path = row.read::<&str, _>("path").to_string();
+                    histories.push(history);
+                }
+                print_histories_to_choose(histories, Print::PrintPath)?;
+                Ok(())
             }
         }
     }

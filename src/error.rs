@@ -7,6 +7,7 @@ pub enum ShiError {
     FromUtf8(String),
     Copy,
     Input,
+    Arg,
 }
 
 impl std::error::Error for ShiError {}
@@ -20,7 +21,8 @@ impl std::fmt::Display for ShiError {
             ShiError::IntoInner(s) => s.as_ref(),
             ShiError::FromUtf8(s) => s.as_ref(),
             ShiError::Copy => "Cannot connect to the clipboard.",
-            ShiError::Input => "Exit.",
+            ShiError::Input => "Invalid input.",
+            ShiError::Arg => "Invalid arguments.",
         };
         write!(f, "{}", printable)
     }
