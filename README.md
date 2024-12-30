@@ -1,6 +1,6 @@
 # shi
 
-small history / 史
+shell history / 史
 
 A tiny program to add the time and place to your shell history.\
 This also enables you to copy a command to the clipboard.
@@ -9,7 +9,7 @@ This also enables you to copy a command to the clipboard.
 
 ## Installation
 
-_**You must have sqlite installed.**_
+_**Sqlite required.**_
 
 `cargo install shi_history`, or
 
@@ -21,7 +21,7 @@ cargo install --path .
 
 And add the preexec hook to your shell config file.
 
-For bash:
+### bash
 
 _(bash-preexec required. See
 [https://github.com/rcaloras/bash-preexec](https://github.com/rcaloras/bash-preexec))_
@@ -30,6 +30,8 @@ _(bash-preexec required. See
 source ~/.bash-preexec.sh
 preexec() { shi --insert "$@"; }
 ```
+
+### Others
 
 For zsh or fish, you can use preexec hook.
 
@@ -45,14 +47,14 @@ At the first launch, `shi` creates sqlite database in
 `~/.local/share/shi/.history`).
 
 ```
-shi [ROWS]                       Print executed commands and time. (Default: 50 rows)
+shi                              Print latest commands (50 rows)
+shi <COMMAND> [ROWS]             Show commands that match the query
 
 Options:
   -a, --all                      Print all the history with the directory path where the command was executed
   -i, --insert <COMMAND>         Insert the command to the history
   -r, --remove <ID>              Delete the command that matches the id
   -p, --path <PATH> [ROWS]       Show commands that were executed in directories that match the query
-  -c, --command <COMMAND> [ROWS] Show commands that match the query
   -o, --output                   Export all the history to `$XDG_DATA_HOME/shi/history.csv`
-  --drop                         Drop the database table: Deleting all history
+  --drop                         Drop the database table, deleting all history
 ```
